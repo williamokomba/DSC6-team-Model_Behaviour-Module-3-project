@@ -11,4 +11,4 @@ Our case study is centered in Lisbon, Oporto and some parts of Portugal where ou
 
 Mercy Cheruiyot <cherono.mj@gmail.com
 
-Jerome Mberia <jeromemberia@gmail.
+Jerome Mberia <jeromemberia@gmail.com
