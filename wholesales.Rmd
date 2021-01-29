@@ -1,0 +1,876 @@
+---
+title: "R Notebook"
+output: rmarkdown::github_document
+---
+
+## Defining the Question 
+
+segmentation of customers according to their spending habits on different products.
+
+##  Understanding the Context
+The wholesale customer segmentation problem is an issue of concern to most wholesale distributors in the business world. Classification of customers is fundamental since it enables marketing teams to have customized strategies meant for different groups of customers.Being able to understand customer behavior and patterns together with spending habits is key to strategizing. This influences better selling of products hence revenue to a business.
+Our case study is centered in Lisbon, porto and some parts of Portugal where our client supplies products.The data set includes the annual spending in monetary units on diverse product categories.
+
+## Business Objective.
+
+The main objective of this project is;
+To be able to classify groups of customers hence customize marketing strategies for each group.
+To be able to identify spending habits of customers.
+Come up with insights that help with marketing strategies
+
+
+
+### Data provided
+
+Dataset Url = https://www.kaggle.com/binovi/wholesale-customers-data-set
+
+### Data grossary
+
+Model Behaviour will be using a dataset sourced from Kaggle. It contains 440 rows and 8 columns; 
+
+1) FRESH: annual spending (m.u.) on fresh products (Continuous);
+2) MILK: annual spending (m.u.) on milk products (Continuous);
+3) GROCERY: annual spending (m.u.)on grocery products (Continuous);
+4) FROZEN: annual spending (m.u.)on frozen products (Continuous)
+5) DETERGENTS_PAPER: annual spending (m.u.) on detergents and paper products (Continuous)
+6) DELICATESSEN: annual spending (m.u.)on and delicatessen products (Continuous);
+7) CHANNEL: customersâ€™ Channel - Horeca (Hotel/Restaurant/CafÃ©) or Retail channel (Nominal)
+ 1: hotel/restaurant/cafe
+ 2: retail
+8) REGION: customersâ€™ Region â€“ Lisnon, Oporto or Other (Nominal)
+- 1: Lisbon / 2: Porto / 3: other region
+Dimensions are; 440*8
+Region Frequency
+Lisbon 77 Oporto 47 Other Region 316 Total 440
+Channel Frequency¶
+Horeca 298 Retail 142 Total 440
+
+
+##  Defining the metric for success
+
+Being able to cluster customers based on spending habits.
+
+
+## 1.4 Recording the Experimental
+
+1.Data Loading 
+
+2.Data cleaning for missing values and outliers 
+
+3.Exploratory Data Analysis 
+
+4. implementation using k-means and hierarchical clustering.
+
+5.Recomendation and conclusion.
+
+## 1.5 Assessing the Relevance of the Data
+
+The dataset is genuine  since it was got from kaggle which is trusted open source.
+
+### Importing and reading dataset
+```{r}
+library(readr)
+customers_data_2<- read_csv("C:/Users/william/Downloads/Wholesale customers data.csv")
+#
+# making dataframe copy
+customers_data<-customers_data_2
+#
+#checking the fist 6 rows of the dataset.
+head(customers_data)
+```
+
+### checking the bottom rows of the dataset
+```{r}
+tail(customers_data)
+```
+
+
+### getting the dataset summary
+```{r}
+summary(customers_data)
+```
+
+### checking datatypes 
+```{r}
+
+str(customers_data)
+```
+
+### converting the data into a tibble for easy manupulation
+```{r}
+library(caret)
+library(tibble)
+#For ease in analysis,we convert the data into a tibble
+customers_data<-as_tibble(customers_data) # there is suggestion to use as_tibble instead of as.tibble.
+head(customers_data)
+```
+
+
+
+
+
+
+##. Data cleaning
+
+
+```{r}
+#checking the missing values
+is.null(customers_data)
+```
+
+```{r}
+# checking for duplicates 
+anyDuplicated(customers_data)
+```
+
+### checking for outliers
+
+### installing the packages.
+```{r}
+# install.packages("magrittr") # package installations are only needed the first time you use it
+# install.packages("dplyr")    # alternative installation of the %>%
+library(magrittr) # needs to be run every time you start R and want to use %>%
+library(dplyr)    # alternatively, this also loads %>%
+```
+
+
+## converting some colunms to categorical datatypes.
+
+channel and Region are categorical in nature and not numerical, they have already been encoded to make them easier to work with. We will convert them to their appropriate data type.
+
+
+```{r}
+##converting colunms to categorical datatypes
+#
+customers_df <-customers_data
+customers_df$Channel  <- as.factor(customers_df$Channel)
+customers_df$Region <- as.factor(customers_df$Region)
+```
+
+##confirming the datatype changes
+```{r}
+# confirming the data types changes
+str(customers_df)
+```
+the two variables has been transformed to categorical datatype. 
+
+
+
+###3.2a Identifying the numeric class in the data and evaluating if there are any outliers
+```{r}
+#
+#Checking the data types of the columns
+#
+data.num<- customers_df %>% select_if(is.numeric)
+data.num
+
+
+```
+
+
+### checking for outliers
+```{r}
+for (i in 1:ncol(data.num)) {
+  boxplot(data.num[, i], main=names(data.num[, i]))
+}
+```
+observation: all variables has outliers. However we will not drop them as they look genuine.
+
+
+
+
+
+### renaming the rows of the channel, and region for analysis purpose.
+```{r}
+#Renaming colunms for analysis purpose
+#
+library(caret)
+library(lattice)
+library(dplyr)
+
+customers_df$Channel <- with(customers_data,  factor(Channel, levels = c(1,2),labels = c("restaurant", "retail")))
+
+customers_df$Region <- with(customers_data,  factor(Region, levels = c(1,2,3), labels = c("Lisbon", "Porto", "Other region")))
+#
+#confirming the changes
+head(customers_df)
+```
+observation: we converted encoded variable to categorical variable.
+
+
+###checking dataset summary after data cleaning
+```{r}
+# getting the main summary
+summary(customers_df)
+```
+the above shows the mean, median, max, and quantile for numerical variables and frequences for categorical variables.
+
+
+##getting the dataset description
+```{r}
+library(psych)
+describe(customers_df)
+```
+observation: it gives us the a glimpse of the variance,mean,variance,max and so on.
+
+
+## Univariate Analysis
+
+
+
+### univariate Analysis for Numerical data
+
+
+```{r}
+
+#preview of the numerical columns
+#
+library(dplyr)    # alternatively, this also loads %>%
+data.num<- customers_df %>% select_if(is.numeric)
+head(data.num)
+```
+
+
+
+### previewing the numerical variables using histograms to check skewness.
+```{r}
+#3.3ai installing ggplot2 package for visualization.
+#install.packages('ggplot2')
+#
+#installing ggplot2 library
+#
+library(ggplot2)
+#
+#note: the above  have been installed in the console section.
+```
+## univariate analysis
+
+### 1. Numerical variables distribution
+```{r}
+#visualizing the Fresh  colunm to check for skewness
+#
+qplot(data = data.num, x = Fresh)
+```
+```{r}
+#visualizing the milk colunm to check for skewness
+#
+qplot(data = data.num, x = Milk,)
+```
+
+```{r}
+#visualizing the grocery  colunm to check for skewness
+#
+qplot(data = data.num, x = Grocery)
+```
+
+```{r}
+#visualizing the Frozen  colunm to check for skewness
+#
+qplot(data = data.num, x = Frozen)
+```
+
+```{r}
+#visualizing the Detergents_Paper colunm to check for skewness
+#
+qplot(data = data.num, x = Detergents_Paper)
+```
+
+```{r}
+#visualizing the Delicassen  column to check for skewness
+#
+qplot(data = data.num, x = Delicassen)
+```
+
+Observation: All our numerical variables are positively skewed.This means the variable mean is greater than the mode.
+
+
+
+### we can check skewness for numerical values at once as below
+```{r}
+## we can check skewness for numerical values at once as below
+library(caret)
+library(ggplot2)
+library(dplyr)    # alternatively, this also loads %>%
+library(tidyr)
+
+customers_df%>%
+  gather(attributes, value, 3:8) %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(fill = 'lightblue2', color = 'black') +
+  facet_wrap(~attributes, scales = 'free_x') +
+  labs(x="Values", y="Frequency") +
+  theme_bw()
+```
+observation: shows skewness to the right(positive skewness meaning the tail on the right side is bigger than the left side).
+
+
+### 2.  univariate Analysis for categorical Data
+
+```{r}
+## Identifying the categorical class in the data 
+#
+df_cat<- customers_df %>% select_if(is.factor)
+df_cat
+```
+## creating tables for bar plots.
+```{r}
+# create tables of all categorical variables to be able to create bar plots with them
+Channel_table <- table(customers_df$Channel)
+Region_table <- table(customers_df$Region)
+```
+
+### adjusting plot size bf plotting.
+```{r}
+# function for adjusting plot size
+set_plot_dimensions <- function(width_choice, height_choice) {
+    options(repr.plot.width = width_choice, repr.plot.height = height_choice)
+}
+```
+
+
+```{r}
+# barplot for channel variable
+set_plot_dimensions(5, 4)
+Channel_table
+barplot(Channel_table, ylab = "count", xlab="Channel", col="dark red")
+```
+observation: restaurant has more sales compared to retail variable. 
+
+
+
+```{r}
+# barplot of the region representation.
+set_plot_dimensions(5, 4)
+Region_table
+barplot(Region_table, ylab = "count", xlab="Region", col="sky blue")
+```
+observation:other regions has more sales, followed by Lisbon city, and finally Porto.
+
+
+
+## Bivariate Analysis
+
+
+```{r}
+# previewing numerical data once again.
+#
+head(data.num)
+```
+
+
+### plotting scatter plots for numerical data
+```{r}
+for (i in 1:(ncol(data.num)/2)) {
+  for (j in 4:ncol(data.num)) {
+       plot(as.numeric(unlist(data.num[, j]))
+, as.numeric(unlist(data.num[, i]))
+, xlab = names(as.vector(data.num[, i]))
+, ylab = names(as.vector(data.num[, j])))
+  
+  }
+
+}
+
+#scatterplot 
+
+```
+observation: 
+
+1. Frozen vs Fresh.
+As the expenditures for frozen products go up those of fresh products equally go up though not correspondingly.
+For both products most customers spent averagely small amounts of money and those who spent more were few.
+2. Detergents and Fresh Products.
+The amount spent on these products don’t have a direct relationship.
+As the expenditures of detergents goes up, that of Fresh products don’t necessarily go up also and vice versa.
+3. Delicatessen vs Fresh Products.
+For Delicatessen and fresh products, the amounts spent on delicatessen by customers progressively increases without much significant increase in that of fresh products. 
+There is a chance customers prefer more delicatessen from this wholesale compared to milk products therefore the marketing team should focus on ensuring that supply delicatessen products is constant and look into bettering quality of milk products maybe that could encourage customers to purchase their milk products as much as they do delicassens.
+4. Frozen products vs Milk.
+For both of these products, most customers spend less on them them but purchases of both don’t have a relation.
+5. Detergent paper and milk products.
+Both have a positive correlation. As the amount spent on either increases so does the amount spent on the other.
+6. Delicassen and Milk.
+For both these two most  customers spend about the same amount of money.
+7. Frozen and Grocery.
+Most customers for both products spend the least amount spendable then individually increase without any correlation.
+8.  Delicatessen and Grocery.
+When these two are compared, the amounts spend on groceries remain low as that spent on groceries increase. 
+Marketing focus should be put on groceries in this case. The marketing team should probably come up with advertisements for healthy eating habits to push the grocery sales or even have them in the same position at the store with fresh products this could prompt buyers who prefer fresh products to buy them.
+
+
+
+
+
+```{r}
+cor(data.num)
+```
+
+
+### plotting correlation of the numerical variables.
+```{r}
+#install.packages("corrplot") 
+library(corrplot)
+#
+## Let’s build a correlation matrix to understand the relation between each attributes
+corrplot(cor(data.num), type = 'upper', method = 'number', tl.cex = 0.9, bg="black")
+```
+observation: There is a strong linear correlation between a couple of variables.
+
+1.Grocery and Detergent_papers have a high  positive correlation of 0.92. 
+
+2. Milk and Grocery have a high positive correlation of 0.73. 
+
+3. Detergent and Milk have a high positive correlated of 0.66, 
+
+3. Delicassen and Milk have a high positive correlation of 0.41.
+
+4. Frozen and Detergent_paper have a negative correlation of -0.13.
+
+
+
+
+## clustering
+
+we will use unsupervised learning
+
+## Feature Selection
+
+### 1.filter method
+```{r}
+# Calculating the correlation matrix
+# ---
+#
+feature_num<-data.num
+cor_Matrix <- cor(feature_num)
+cor_Matrix
+
+```
+```{r}
+# Find attributes that are highly correlated
+# ---
+#
+high_cor <- findCorrelation(cor_Matrix, cutoff=0.75)
+high_cor
+#
+names(data.num[,high_cor])
+```
+observation; grocery variable  is highly correlated. 
+
+
+### Dropping variable with high correlation.
+```{r}
+# We can remove the variables with a higher correlation 
+# and comparing the results graphically as shown below
+# 
+# Removing Redundant Features 
+# ---
+# 
+new_num<-feature_num[-high_cor]
+new_num
+```
+variable Grocery has been dropped
+
+
+###. performing the comparison
+```{r}
+# Performing our graphical comparison
+# ---
+# 
+par(mfrow = c(1, 2))
+corrplot(cor_Matrix, order = "hclust")
+corrplot(cor(new_num), order = "hclust")
+```
+removing one variable  reduce Multicollinearity as it remove redundancy
+
+
+##1. Wrapper Methods for feature selection
+we use the clustvarsel function will implement variable section methodology 
+for model-based clustering to find the optimal subset of variables in a dataset.
+
+```{r}
+#preview of dataset
+#
+
+head(new_num)
+```
+
+### scaling  the datset.
+```{r}
+# scaling our dataset by use of scale function.
+#
+library(dplyr)
+wrapper_norm <- as.data.frame(scale(new_num))
+#
+#previewing the scaled dataset.
+head(wrapper_norm)
+```
+observation: our data is now scaled and is now on the same scale.
+
+
+### installing the packages to be used
+```{r}
+# Installing  package
+# install.packages("mclust")
+# Install.packages("clustvarsel")
+#
+#loading libraries 
+library(mclust)                       
+library(clustvarsel)
+```
+
+### selecting the best features 
+```{r}
+# Sequential forward greedy search (default)
+# ---
+#
+out = clustvarsel(wrapper_norm, G = 1:5)
+out
+```
+observation: surprisingly all the 5 features in our dataset were accepted.
+
+
+### finding the best features 
+```{r}
+# Having identified the variables that we use, we proceed to build the clustering model:
+# ---
+#
+# Building the model
+Subset1 = wrapper_norm[out$subset]
+mod = Mclust(Subset1, G = 1:5)
+summary(mod)
+```
+
+
+###2. Embedded Methods future selection
+
+We will use the ewkm function from the wskm package.
+
+This is a weighted subspace clustering algorithm that is well suited to very high dimensional data.
+
+
+### installing the package to use
+```{r}
+# We install and load our wskm package
+#install.packages("wskm")
+#
+#loading library
+library(wskm)
+
+
+```
+### model building
+```{r}
+embed_data <-wrapper_norm
+set.seed(6)
+model <- ewkm(embed_data[1:5], 2, lambda=2, maxiter=1000)
+model
+```
+
+```{r}
+##Loading and installing our cluster package to be used
+#
+#install.packages("cluster")
+#
+# loading the library
+library("cluster")
+```
+
+
+```{r}
+# Cluster Plot against 1st 2 principal components
+# ---
+#
+clusplot(embed_data[1:5], model$cluster, color=TRUE, shade=TRUE,
+         labels=6, lines=1,main='Cluster Analysis for wholesale dataset')
+```
+observation, with 2 clusters, the two components explains 72.46% of the point variability.
+
+The red cluster shows that some customers spending habits increases significantly over different products.
+Blue cluster shows these customers spending habits on one product increases where as their spending habits decreases on other products.
+
+
+
+
+### calculating weight for each cluster
+
+Weights are calculated for each variable and cluster. 
+
+They are a measure of the relative importance of each variable 
+with regards to the membership of the observations to that cluster. 
+
+The weights are incorporated into the distance function, 
+typically reducing the distance for more important variables.
+
+```{r}
+# checking the Weights 
+# 
+round(model$weights*100,2)
+```
+observation:
+
+In cluster 1, Frozen has a high weight of 1
+
+In cluster 2, Detergent_paper has a high weigh of 1
+
+
+
+
+### 4. Feature ranking 
+
+We use the FSelector Package. This is a package containing functions for selecting attributes from a given dataset. 
+
+### installing packages and loading the library required
+```{r}
+#Feature Ranking
+#
+#install.packages("FSelector")
+#
+library(FSelector)
+#
+```
+
+### checking correlation.
+```{r}
+library(caret)
+library(corrplot)
+#
+corrplot(cor(embed_data), type = 'upper', method = 'number', tl.cex = 0.9)
+```
+### ranking the features
+```{r}
+# From the FSelector package, we use the correlation coefficient as a unit of valuation. 
+# This would be one of the several algorithms contained 
+# in the FSelector package that can be used rank the variables.
+# ---
+# 
+Scores <- linear.correlation(embed_data)
+Scores
+```
+explanation: From the output above, we observe a list containing rows of variables on the left and score on the right.
+
+
+we will now make decision
+
+
+### our decision will be based on cuttoff k=4
+```{r}
+# In order to make a decision, we define a cutoff.
+# we want to use the top 5 representative variables, 
+# through the use of the cutoff.k function included in the FSelector package. 
+# Alternatively, we could define our cutoff visually 
+# but in cases where there are few variables than in high dimensional datasets.
+# 
+# cutoff.k: The algorithms select a subset from a ranked attributes.
+
+Subset <- cutoff.k(Scores, 4)
+as.data.frame(Subset)
+```
+observation: the top 4 features are frozen,delicassen,Detergents_paper, milk and Grocery.
+
+
+### cutoff based on percentage
+```{r}
+# We  set cutoff as a percentage which would indicate 
+# that we would want to work with the percentage of the best variables.
+# ---
+#
+Subset2 <-cutoff.k.percent(Scores, 0.6)
+Subset2
+```
+observation: at 60% we get 3 variables as the best to work with.
+
+
+
+##K-mean clustering
+
+### confirmating all the datatypes are numerical
+#
+```{r}
+#previewing the dataset to be 
+embed_data<-
+head(customers_df)
+```
+
+
+## k-means method
+### getting numerical variables for clustering
+```{r}
+head(new_num)
+```
+observation: variables have the right datatypes.
+
+
+
+
+###1. k-means clustering
+
+```{r}
+# using already scaled data. 
+#
+summary(new_num)
+```
+our dataset is in different dimension.we will scale it before we do clustering
+
+
+
+```{r}
+# normalizing our dataset by use of scale function.
+#
+library(dplyr)
+df_Normalize <- as.data.frame(scale(new_num))
+#
+#previewing the scaled dataset.
+head(df_Normalize)
+```
+observation: our data has been scaled and is now on the same scale.
+
+
+### Getting the optimal clusters.
+
+###installing the packages to be used
+```{r}
+library(factoextra)
+library(cluster)
+library(gridExtra) # for grid.arrange
+library(dplyr)
+```
+###1.a Elbow method
+
+### Getting the  optimal cluster for  k-means elbow method
+```{r}
+# Determining Optimal clusters (k) Using Elbow method
+fviz_nbclust(x = df_Normalize,FUNcluster = kmeans, method = 'wss' )
+```
+observation: elbow methods gives 2 as the optimal cluster, we will check other methods.
+
+
+
+
+
+###1.b k-means silhouette method optimal cluster
+```{r}
+# Determining Optimal clusters (k) Using Average Silhouette Method
+
+fviz_nbclust(x = df_Normalize,FUNcluster = kmeans, method = 'silhouette' )
+```
+observation; silhouette method chooses 2 as optimal cluster.
+
+
+###1.c K-means Gap-Statistic method
+```{r}
+#loading libraries required
+library(factoextra)
+library(cluster)
+
+# compute gap statistic
+set.seed(1234)
+gap_stat <- clusGap(x = df_Normalize, FUN = kmeans, K.max = 15, nstart = 25,iter.max=100)
+
+# Print the result
+print(gap_stat, method = "firstmax")
+```
+
+#visualizing to get the optimal cluster
+```{r}
+# plot the result to determine the optimal number of clusters.
+fviz_gap_stat(gap_stat)
+```
+gap statistics method gives as 1 as the optimal cluster.
+
+
+```{r}
+# Compute k-means clustering with k = 2, optimal cluster
+set.seed(123)
+kmean_df <- kmeans(new_num, centers = 2, nstart = 25)
+print(kmean_df)
+```
+
+
+We can visualize the results using the below code.
+
+### visualizing the kmeans clusters
+```{r}
+library(factoextra)
+library(cluster)
+
+fviz_cluster(kmean_df, data = customers_data)
+```
+These are the 2 optimal clusters.these shows clients spend less and can be attributed to particular product buying,while others spend more which time for example restaurants.
+
+
+```{r}
+head(kmean_df)
+```
+observation: the above shows the means of the two clusters.
+
+
+```{r}
+head(customers_df)
+```
+
+
+```{r}
+# Verifying the results of clustering
+# ---
+# 
+par(mfrow = c(2,2), mar = c(5,4,2,2))
+
+# Plotting to see how Sepal.Length and Sepal.Width data points have been distributed in clusters
+plot(customers_df[c(5:6)], col = kmean_df$cluster)
+plot(customers_df[c(4,5)], col = kmean_df$cluster)
+plot(customers_df[c(3,4)], col = kmean_df$cluster)
+# Plotting to see how Sepal.Length and Sepal.Width data points have been distributed 
+# originally as per "class" attribute in dataset
+# ---
+
+```
+There are two clusters of customers according to spending habits;
+Those that spend more on fresh products and not groceries and vice versa.
+Those that spend more on fresh products and not milk and vice versa.
+Those whose spending habits are more on groceries and milk but that of milk is slightly higher than that of groceries.
+
+
+```{r}
+# showing how the clusters respond to the region variable
+table(kmean_df$cluster, customers_df$Region)
+```
+observation: based on the above findings, lisbon has a higher representation compared to cluster Porto.
+thus the wholesale supplier should concentrate on Lisbon.
+
+
+```{r}
+# showing how the clusters respond to the region variable
+table(kmean_df$cluster, customers_df$Channel)
+```
+observation: restaurants has representation on cluster 1, note that cluster one is the high spending group.
+
+
+### We can extract the clusters and add to our initial data to do some descriptive statistics at the cluster level
+```{r}
+library(tidyr)
+#customers_df %>% 
+ # mutate(Cluster = kmean_df$cluster) %>%
+ # group_by(Cluster) %>%
+ # summarize_all('median')
+```
+
+##checking the cluster size.
+```{r}
+# Cluster size
+kmean_df$size
+```
+observation: we can see customers in cluster one has a high spending habit.
+
+
+
+
+## Recommendation
+
+1. Delicatessen and Milk
+There is a chance customers prefer more delicatessen from this wholesale compared to milk products therefore the marketing team should focus on ensuring that supply delicatessen products is constant and look into bettering quality of milk products maybe that could encourage customers to purchase their milk products as much as they do delicassens.
+
+2.  Delicatessen and Grocery.
+When these two are compared, the amounts spend on groceries remain low as that spent on groceries increase. 
+Marketing focus should be put on groceries in this case. The marketing team should probably come up with advertisements for healthy eating habits to push the grocery sales or even have them in the same position at the store with fresh products this could prompt buyers who prefer fresh products to buy them.
+
+3.Since Lisbon is a high representation on high spending customers, the wholesalers should focus on distributing products preferred by restaurant to maximize revenue.
